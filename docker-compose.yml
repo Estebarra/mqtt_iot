@@ -1,0 +1,40 @@
+services:
+  memory-sensor:
+    build:
+      context: ./memory_sensor
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      - SENSOR_ID=memory-sensor-001
+      - PUBLISH_INTERVAL=30
+    container_name: memory-sensor
+
+  cpu-sensor:
+    build:
+      context: ./cpu_sensor
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      - SENSOR_ID=cpu-sensor-001
+      - PUBLISH_INTERVAL=15
+    container_name: cpu-sensor
+
+  subscriber:
+    build:
+      context: ./subscriber
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      - SUBSCRIBER_ID=monitoring-subscriber-001
+      - SUMMARY_INTERVAL=120
+    container_name: subscriber
+    depends_on:
+      - memory-sensor
+      - cpu-sensor
+
+networks:
+  default:
+    name: mqtt-monitoring-network
