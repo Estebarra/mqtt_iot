@@ -71,7 +71,7 @@ def on_disconnect(client, userdata, rc):
 # using MQTT version 5 here, for 3.1.1: MQTTv311, 3.1: MQTTv31
 # userdata is user defined data of any type, updated by user_data_set()
 # client_id is the given name of the client
-client = paho.Client(client_id="", userdata=None, protocol=paho.MQTTv5)
+client = paho.Client(client_id=f"{sensor_id}_memory", userdata=None, protocol=paho.MQTTv5)
 client.on_connect = on_connect
 
 # enable TLS for secure connection

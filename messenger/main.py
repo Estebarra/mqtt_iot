@@ -8,43 +8,21 @@ import paho.mqtt.client as paho
 
 from paho import mqtt
 from dotenv import load_dotenv
+from fastapi import FastAPI, Response, status
+from pydantic import BaseModel, Field
+from contextlib import asynccontextmanager
+
 
 load_dotenv()
 
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 
-sensor_id = os.getenv("SENSOR_ID")
+messenger_id = os.getenv("MESSENGER_ID")
 
 logging.basicConfig(
     level=log_level,
-    format=f'%(asctime)s - {sensor_id} - %(levelname)s - %(message)s'
+    format=f'%(asctime)s - {messenger_id} - %(levelname)s - %(message)s'
 )
-
-def cpu_monitor():
-
-    publish_interval = int(os.getenv("PUBLISH_INTERVAL"))
-
-    while True:
-        cpu_percent = psutil.cpu_percent(interval=1)
-
-        logging.info(f"CPU Usage: {cpu_percent:.1f}%")
-
-        cpu_data ={
-            "timestamp": time.time(),
-            "sensor_id": sensor_id,
-            "cpu_percent": cpu_percent
-        }
-
-        try:
-            client.publish(
-                "monitoring/cpu", 
-                payload=json.dumps(cpu_data), 
-                qos=1
-            )
-        except Exception as e:
-            logging.error(f"Failed to publish CPU data: {e}")
-        
-        time.sleep(publish_interval)
 
 # setting callbacks for different events to see if it works, print the message etc.
 def on_connect(client, userdata, flags, rc, properties=None):
@@ -71,7 +49,7 @@ def on_disconnect(client, userdata, rc):
 # using MQTT version 5 here, for 3.1.1: MQTTv311, 3.1: MQTTv31
 # userdata is user defined data of any type, updated by user_data_set()
 # client_id is the given name of the client
-client = paho.Client(client_id=f"{sensor_id}_cpu", userdata=None, protocol=paho.MQTTv5)
+client = paho.Client(client_id=f"{messenger_id}", userdata=None, protocol=paho.MQTTv5)
 client.on_connect = on_connect
 
 # enable TLS for secure connection
@@ -87,18 +65,43 @@ client.on_message = on_message
 client.on_publish = on_publish
 client.on_disconnect = on_disconnect
 
-if __name__=="__main__":
-    client.loop_start()
+class UserInput(BaseModel):
+    message: str = Field(description="Message to be sent")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     try:
-        logging.info(f"Starting CPU monitoring")
-        cpu_monitor()
+        client.loop_start()
+        logging.info(f"Starting messaging app")
+
+        yield
 
     except KeyboardInterrupt:
-        logging.info("\nStopping CPU monitor...")
+        logging.info("\nStopping messaging app...")
     except Exception as e:
         logging.error(f"Error: {e}")
     finally:
         client.loop_stop()
         client.disconnect()
-        logging.info("\nCPU sensor stopped")
+        logging.info("\nmessaging app stopped")
+
+app = FastAPI(lifespan=lifespan)
+
+@app.post("/")
+async def publish_message(input: UserInput):
+    message_data ={
+            "timestamp": time.time(),
+            "messenger_id": messenger_id,
+            "message": input.message
+        }
+    try:
+            client.publish(
+                "monitoring/messages", 
+                payload=json.dumps(message_data), 
+                qos=1
+            )
+    except Exception as e:
+        logging.error(f"Failed to publish memory data: {e}")
+
+    return Response(status_code=status.HTTP_200_OK)
+

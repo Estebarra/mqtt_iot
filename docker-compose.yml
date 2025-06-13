@@ -21,10 +21,24 @@ services:
       - PUBLISH_INTERVAL=15
     container_name: cpu-sensor
 
+  app:
+    build:
+      context: ./messenger
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - MESSENGER_ID=messenger-001
+    container_name: messenger
+
   subscriber:
     build:
       context: ./subscriber
       dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
     env_file:
       - .env
     environment:
